@@ -1,6 +1,6 @@
 # Work Item Group Approval
 
-Add sign-off buttons directly to your Azure Boards work item. Each button lets a designated person record approval on behalf of a named group — IT, QA, Business, Legal, or any group you define. The extension captures who approved, for which group, and when, and stores everything in real work item fields that you can query, filter, and report on.
+Add sign-off buttons directly to your Azure Boards work item. Each button lets a designated person record approval on behalf of a named group - IT, QA, Business, Legal, or any group you define. Approvals can be **restricted to members of a named Azure DevOps team**, and each button can be **shown or hidden based on the value of another field** so approval steps only appear when they apply. The extension captures who approved, for which group, and when, and stores everything in real work item fields that you can query, filter, and report on.
 
 ## What it does
 
@@ -10,17 +10,19 @@ Each control you add to a work item layout renders as a single button. Before an
 - After the work item is saved, the approver sees **Reset Approval** in blue so they can undo if needed. Members of the configured admin team can also reset on their behalf.
 - Everyone else sees the approver's display name in green, with a caption showing which group was approved and the date.
 
-Stack multiple controls in one column — one per group — and each operates independently. A form column might show IT, QA, and Business approvals side by side, each with its own status at a glance.
+Stack multiple controls in one column - one per group - and each operates independently. A form column might show IT, QA, and Business approvals side by side, each with its own status at a glance.
+
+Restrict each button to members of a named Azure DevOps team - anyone outside that team sees the approval as read-only and cannot click it. Buttons can also be shown or hidden based on the value of another field on the same work item, so approval steps only appear when they apply and never clutter the form otherwise.
 
 ![Approval states](images/ApprovalStates.png)
 
 ## Why use it
 
-- **Stays inside Azure Boards** — no separate tool, no email chain, no spreadsheet to maintain.
-- **Queryable** — approvals live in standard work item fields, so you can filter backlogs, build dashboard queries, and use Analytics just like any other field.
-- **Auditable** — every approval and reset is recorded in the work item history with a timestamp and the identity of who made the change.
-- **Respects your theme** — the control picks up your organization's light, dark, or high-contrast theme automatically.
-- **Accessible** — screen readers get a full descriptive label ("Approved by … for … on …") rather than just a person's name.
+- **Stays inside Azure Boards** - no separate tool, no email chain, no spreadsheet to maintain.
+- **Queryable** - approvals live in standard work item fields, so you can filter backlogs, build dashboard queries, and use Analytics just like any other field.
+- **Auditable** - every approval and reset is recorded in the work item history with a timestamp and the identity of who made the change.
+- **Respects your theme** - the control picks up your organization's light, dark, or high-contrast theme automatically.
+- **Accessible** - screen readers get a full descriptive label ("Approved by … for … on …") rather than just a person's name.
 
 ## Prerequisites
 
@@ -28,8 +30,8 @@ Before adding the control to a form, create the backing fields in your **inherit
 
 | Field | Type | Suggested reference name |
 | --- | --- | --- |
-| Approver | Identity | `Custom.<Group>Approver` — e.g. `Custom.ITApprover` |
-| Approved on *(optional)* | Date/Time | `Custom.<Group>ApprovedOn` — e.g. `Custom.ITApprovedOn` |
+| Approver | Identity | `Custom.<Group>Approver` - e.g. `Custom.ITApprover` |
+| Approved on *(optional)* | Date/Time | `Custom.<Group>ApprovedOn` - e.g. `Custom.ITApprovedOn` |
 
 Create one set of fields per group. Add each field to the work item types that need approval, then proceed to installation.
 
@@ -70,16 +72,16 @@ Some approval steps only apply to certain kinds of work items. For example, an o
    - **Visibility field:** `Custom.ReleaseType`
    - **Visibility value:** `Emergency`
 
-The button now appears only when `Release Type` is `Emergency`. As soon as someone changes the field to `Standard`, the button disappears — no empty space, no "N/A" state. Changing it back to `Emergency` brings the button back immediately, without saving the work item first.
+The button now appears only when `Release Type` is `Emergency`. As soon as someone changes the field to `Standard`, the button disappears - no empty space, no "N/A" state. Changing it back to `Emergency` brings the button back immediately, without saving the work item first.
 
 ## Who can reset an approval?
 
 Once a work item is saved with an approval recorded, two groups of people can reset it:
 
 - The person who clicked the button.
-- Any member of the **Admin team** configured on that control (optional — if none is set, only the original approver can reset).
+- Any member of the **Admin team** configured on that control (optional - if none is set, only the original approver can reset).
 
-Everyone else sees the approval as read-only. This is enforced in the control UI. Because Azure DevOps has no server-side work item rule that locks a field to a specific identity, the underlying field can still be edited via the REST API or bulk edit by users with edit permission — every such change is recorded in the work item history as an audit trail.
+Everyone else sees the approval as read-only. This is enforced in the control UI. Because Azure DevOps has no server-side work item rule that locks a field to a specific identity, the underlying field can still be edited via the REST API or bulk edit by users with edit permission - every such change is recorded in the work item history as an audit trail.
 
 ## Permissions requested
 

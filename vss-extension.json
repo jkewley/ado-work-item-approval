@@ -2,9 +2,9 @@
     "manifestVersion": 1,
     "id": "work-item-group-approval",
     "publisher": "JoshKewley",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "name": "Work Item Approval Button",
-    "description": "Adds an approval button to a work item. Captures the identity of the approver and a timestamp; only the approver or a project administrator can reset approval.",
+    "description": "Add an approval button to your work items. Each button can be restricted to members of a named Azure DevOps team and can be shown or hidden based on the value of another field - so approval steps only appear when they apply. Captures the approver's identity and a timestamp; only the approver or a configured admin team can reset.",
     "public": true,
     "categories": [
         "Azure Boards"
@@ -14,7 +14,12 @@
         "release",
         "approval",
         "sign-off",
-        "governance"
+        "governance",
+        "workflow",
+        "audit",
+        "compliance",
+        "change management",
+        "process"
     ],
     "targets": [
         {
