@@ -4,7 +4,7 @@
     "publisher": "JoshKewley",
     "version": "1.0.2",
     "name": "Work Item Approval Button",
-    "description": "Add an approval button to your work items. Each button can be restricted to members of a named Azure DevOps team and can be shown or hidden based on the value of another field - so approval steps only appear when they apply. Captures the approver's identity and a timestamp; only the approver or a configured admin team can reset.",
+    "description": "Add approval buttons to work items. Restrict each to an Azure DevOps team, show/hide by field value, and capture the approver's identity and timestamp. Only the approver or an admin team can reset.",
     "public": true,
     "categories": [
         "Azure Boards"
