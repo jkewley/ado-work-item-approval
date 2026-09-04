@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<title>Group Approval &mdash; button states</title>
+<link rel="stylesheet" href="ado-override.css">
+<link rel="stylesheet" href="ado-button.css">
+<link rel="stylesheet" href="control.css">
+<style>
+body{padding:20px;font-family:"Segoe UI",sans-serif;background:#fff;display:block}
+.row{margin-bottom:24px}
+.lbl{font-size:11px;color:#666;margin-bottom:6px;font-family:"Segoe UI",sans-serif}
+h1{font-size:15px;font-weight:600;margin:0 0 20px}
+/* Simulates ADO's workitemcontrol-label — the built-in form label that sits above the
+   iframe. The 8px gap between it and the button comes from padding-top on .approval-control. */
+.workitemcontrol-label{font-size:12px;color:#605e5c;display:block;font-family:"Segoe UI",sans-serif}
+</style>
+</head><body>
+<h1>Group Approval &mdash; button states (group name "Business")</h1>
+
+<div class="row"><div class="lbl">1. Pending &mdash; nothing recorded yet (enabled, error red &mdash; Button danger)</div>
+<div class="approval-control">
+  <button class="bolt-button danger approval-control__button approval-control__button--pending"><span class="bolt-button-text body-m">Approve for Business</span></button>
+</div></div>
+
+<div class="row"><div class="lbl">2. Just approved, not yet saved &mdash; approver view (enabled, warning amber)</div>
+<div class="approval-control">
+  <button class="bolt-button approval-control__button approval-control__button--unsaved"><span class="bolt-button-text body-m">Business : Pending</span></button>
+  <div class="approval-control__caption approval-control__caption--unsaved">Save the work item to record your approval</div>
+</div></div>
+
+<div class="row"><div class="lbl">3. Recorded &mdash; approver or project admin view (enabled, info blue &mdash; Button primary)</div>
+<div class="approval-control">
+  <button class="bolt-button primary approval-control__button approval-control__button--reset"><span class="bolt-button-text body-m">Reset Approval</span></button>
+  <div class="approval-control__caption">Jordan Lee for Business on 9/1/2026</div>
+</div></div>
+
+<div class="row"><div class="lbl">4. Recorded &mdash; everyone else (disabled, success light green)</div>
+<div class="approval-control">
+  <button class="bolt-button disabled approval-control__button approval-control__button--approved" disabled aria-label="Approved by Jordan Lee for Business on 9/1/2026"><span class="bolt-button-text body-m">Jordan Lee</span></button>
+  <div class="approval-control__caption">Approved for Business on 9/1/2026</div>
+</div></div>
+
+<div class="row"><div class="lbl">4b. Same, with a long display name (grows to the column, then ellipsizes)</div>
+<div style="max-width:260px">
+<div class="approval-control">
+  <button class="bolt-button disabled approval-control__button approval-control__button--approved" disabled aria-label="Approved by Bartholomew Featherstonehaugh-Vance for Business on 9/1/2026"><span class="bolt-button-text body-m">Bartholomew Featherstonehaugh-Vance</span></button>
+  <div class="approval-control__caption">Approved for Business on 9/1/2026</div>
+</div></div></div>
+
+<div class="row"><div class="lbl">5. Read-only form or still loading, nothing recorded (disabled, platform grey)</div>
+<div class="approval-control">
+  <button class="bolt-button disabled danger approval-control__button approval-control__button--pending" disabled><span class="bolt-button-text body-m">Approve for Business</span></button>
+</div></div>
+
+<hr style="margin:32px 0;border:none;border-top:1px solid #ddd">
+<h1>Stacked in one form column (the real layout)</h1>
+<p class="lbl" style="max-width:480px">The form label ("Approvers") is rendered by ADO outside the
+iframe using the <code>workitemcontrol-label</code> class &mdash; it carries no bottom margin of its own.
+The 8px gap between it and the first button comes from <code>padding-top: $spacing-8</code> inside
+each iframe, which also creates a consistent gap between stacked buttons.
+Each block below is one iframe; the dashed outline is the column.</p>
+
+<p class="lbl" style="max-width:420px"><b>Narrow column (300px)</b> &mdash;
+<code>width: min(75%, 300px)</code> = 225px for every button regardless of label length.</p>
+
+<div style="max-width:300px;outline:1px dashed #bbb;padding:0 8px">
+  <label class="workitemcontrol-label">Approvers</label>
+  <div class="approval-control">
+    <button class="bolt-button danger approval-control__button approval-control__button--pending"><span class="bolt-button-text body-m">Approve for IT</span></button>
+  </div>
+  <div class="approval-control">
+    <button class="bolt-button danger approval-control__button approval-control__button--pending"><span class="bolt-button-text body-m">Approve for Management</span></button>
+  </div>
+  <div class="approval-control">
+    <button class="bolt-button disabled approval-control__button approval-control__button--approved" disabled aria-label="Approved by Jordan Lee for QA on 9/1/2026"><span class="bolt-button-text body-m">Jordan Lee</span></button>
+    <div class="approval-control__caption">Approved for QA on 9/1/2026</div>
+  </div>
+  <div class="approval-control">
+    <button class="bolt-button primary approval-control__button approval-control__button--reset"><span class="bolt-button-text body-m">Reset Approval</span></button>
+    <div class="approval-control__caption">Priya Raman for Business on 9/1/2026</div>
+  </div>
+</div>
+
+<p class="lbl" style="max-width:700px;margin-top:28px"><b>Wide column (700px)</b> &mdash;
+75% would be 525px, so the 300px cap takes over.</p>
+<div style="max-width:700px;outline:1px dashed #bbb;padding:0 8px">
+  <label class="workitemcontrol-label">Approvers</label>
+  <div class="approval-control">
+    <button class="bolt-button danger approval-control__button approval-control__button--pending"><span class="bolt-button-text body-m">Approve for IT</span></button>
+  </div>
+  <div class="approval-control">
+    <button class="bolt-button danger approval-control__button approval-control__button--pending"><span class="bolt-button-text body-m">Approve for Management</span></button>
+  </div>
+  <div class="approval-control">
+    <button class="bolt-button disabled approval-control__button approval-control__button--approved" disabled aria-label="Approved by Jordan Lee for QA on 9/1/2026"><span class="bolt-button-text body-m">Jordan Lee</span></button>
+    <div class="approval-control__caption">Approved for QA on 9/1/2026</div>
+  </div>
+  <div class="approval-control">
+    <button class="bolt-button primary approval-control__button approval-control__button--reset"><span class="bolt-button-text body-m">Reset Approval</span></button>
+    <div class="approval-control__caption">Priya Raman for Business on 9/1/2026</div>
+  </div>
+</div>
+
+</body></html>

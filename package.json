@@ -1,0 +1,43 @@
+{
+    "name": "work-item-approval",
+    "version": "0.1.0",
+    "private": true,
+    "description": "Azure DevOps work item form control for per-group approvals",
+    "scripts": {
+        "clean": "rimraf ./dist",
+        "build": "npm run clean && webpack --mode production",
+        "build:dev": "npm run clean && webpack --mode development",
+        "package": "npm run build && npm run check:theme && npm run check:fonts && tfx extension create --manifest-globs vss-extension.json --output-path ./dist",
+        "package:dev": "npm run build:dev && npm run check:theme && npm run check:fonts && tfx extension create --manifest-globs vss-extension.json --overrides-file configs/dev.json --output-path ./dist",
+        "typecheck": "tsc --noEmit",
+        "check:fonts": "node scripts/check-packaged-fonts.js",
+        "preview": "node scripts/build-preview.js",
+        "check:theme": "node scripts/check-theme-vars.js",
+        "check": "npm run typecheck && npm run check:theme && npm run check:fonts"
+    },
+    "dependencies": {
+        "azure-devops-extension-api": "^5.276.0",
+        "azure-devops-extension-sdk": "^4.2.0",
+        "azure-devops-ui": "^2.278.0",
+        "react": "^16.14.0",
+        "react-dom": "^16.14.0"
+    },
+    "devDependencies": {
+        "@types/react": "^16.14.62",
+        "@types/react-dom": "^16.9.24",
+        "copy-webpack-plugin": "^12.0.2",
+        "css-loader": "^7.1.2",
+        "rimraf": "^6.0.1",
+        "sass": "^1.77.0",
+        "sass-loader": "^16.0.5",
+        "style-loader": "^4.0.0",
+        "tfx-cli": "^0.21.1",
+        "ts-loader": "^9.5.2",
+        "typescript": "^5.6.3",
+        "webpack": "^5.97.1",
+        "webpack-cli": "^6.0.1"
+    },
+    "allowScripts": {
+        "@parcel/watcher@2.6.0": true
+    }
+}

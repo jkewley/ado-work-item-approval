@@ -1,0 +1,219 @@
+/*
+ * Bring in the azure-devops-ui base styles. `override.css` is what sets the Segoe UI
+ * font stack and the 14px body size on <body>; without it the control inherits the
+ * iframe's user-agent serif font and looks nothing like the rest of the form.
+ */
+@import "azure-devops-ui/Core/override.css";
+@import "azure-devops-ui/Core/core.css";
+
+/*
+ * The platform's SASS color variables ($status-warning-background, $disabled-text, ...).
+ * Variables and mixins only - importing this emits no CSS of its own.
+ */
+@import "azure-devops-ui/_coreStyles.scss";
+
+/*
+ * Default values for the theme variables this control reads.
+ *
+ * The platform's SASS variables expand to a bare `var(--x)` with no inline fallback, so if
+ * the host does not publish one of them the declaration becomes invalid at computed-value
+ * time and the property falls back to its initial value - a transparent background rather
+ * than a tint. azure-devops-ui's own compiled CSS guards against this by writing
+ * `var(--palette-error, rgba(232, 17, 35, 1))`, which is why the platform's `danger` and
+ * `primary` buttons still render outside a themed host but our tinted states did not.
+ *
+ * SDK.applyTheme() appends its own `:root` block to <head> at runtime, after style-loader
+ * has injected this stylesheet, so anything the host does publish still wins on equal
+ * specificity. These values only fill the gaps, and they double as the palette for
+ * `npm run preview`, which has no host to theme it.
+ *
+ * Values are the light-theme defaults azure-devops-ui itself ships as inline fallbacks.
+ */
+:root {
+    --status-warning-background: #{rgba(251, 242, 236, 1)};
+    --status-warning-text: #{rgba(184, 94, 6, 1)};
+    --status-success-background: #{rgba(223, 246, 221, 1)};
+    --status-success-foreground: #{rgba(16, 124, 16, 1)};
+    --status-error-text: #{rgba(218, 10, 0, 1)};
+    --text-primary-color: #{rgba(0, 0, 0, 0.9)};
+    --text-secondary-color: #{rgba(0, 0, 0, 0.55)};
+    --text-disabled-color: #{rgba(0, 0, 0, 0.38)};
+    --palette-black-alpha-6: #{rgba(0, 0, 0, 0.06)};
+}
+
+/*
+ * Caps the button in a wide column. Kept as a variable because the width floor below has
+ * to reference it to stay under it.
+ */
+$button-max-width: 300px;
+
+/*
+ * Separation between two of these controls stacked in the same column. The platform's
+ * spacing scale starts at 4px, which is too much here, so this is local.
+ */
+$stack-gap: 2px;
+
+html,
+body {
+    /*
+     * override.css sets height: 100% on both, which makes the document as tall as the
+     * iframe and defeats measuring the content. The host iframe is sized to our content
+     * by SDK.resize(), so let the document height follow the content instead, and never
+     * scroll inside the control.
+     */
+    height: auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+body {
+    display: block;
+    background-color: transparent;
+}
+
+.approval-control {
+    display: flex;
+    flex-direction: column;
+    /*
+     * Items size to their content rather than stretching, so the min-width floor on
+     * &__button below is what actually decides the button's width.
+     */
+    align-items: flex-start;
+    gap: $spacing-4;
+    /*
+     * The form host's workitemcontrol-label carries no bottom margin of its own, so any
+     * gap between the built-in label and the first button has to come from inside the
+     * iframe. padding-top is applied to every control in the stack: the first gets the
+     * label-to-button gap, and subsequent controls produce a consistent inter-button gap
+     * (padding-top + $stack-gap) without needing to know whether a label sits above them.
+     */
+    padding: $spacing-8 0 $stack-gap;
+
+    /*
+     * State colors.
+     *
+     * `pending` (error red) and `reset` (info blue) use the Button component's own
+     * `danger` and `primary` props rather than CSS, so they inherit the design system's
+     * hover, active, focus, disabled and high-contrast handling for free. Note that
+     * ADO's info color (--status-info-foreground) and its communication color
+     * (--communication-background) are both rgba(0, 120, 212, 1), so `primary` *is* the
+     * info blue.
+     *
+     * `unsaved` (warning) and `approved` (success) have no equivalent Button variant, so
+     * they are styled here from the platform's status variables. Each rule pairs our own
+     * class with `.bolt-button`, landing at (0,3,0) and (0,4,0) with a pseudo-class. That
+     * outranks azure-devops-ui's own `.bolt-button.disabled` (0,2,0) and
+     * `.bolt-button.disabled:hover` (0,3,0), so the colors hold regardless of which
+     * stylesheet webpack emits last.
+     *
+     * These resolve to CSS custom properties with no baked-in fallback, so they depend on
+     * SDK.init({ applyTheme: true }) having published the host theme into this iframe.
+     * ApprovalControl.tsx does that before rendering. Only variables that azure-devops-ui
+     * itself consumes are used here: --status-info-background, --status-success-text and
+     * --status-warning-foreground are declared in _platformCommon.scss but referenced
+     * nowhere in the shipped CSS, so they are not reliably themed and are avoided.
+     */
+    &__button.bolt-button {
+        /*
+         * Never wrap. The label changes length as the state changes ("Approve for
+         * Business", "Pending", "Reset Approval", an approver's name), and a wrapped
+         * label would change the control's height and fire a resize on every click.
+         */
+        /*
+         * Width comes from the form column, not from the label.
+         *
+         * Each custom control is its own iframe, so two controls cannot negotiate a
+         * shared width between them - there is no cross-iframe layout context and no
+         * platform API for it. Using a fixed `width` (not `min-width`) means every
+         * control in the same column resolves the same computed value, so "IT" and
+         * "Management" stay equally wide at every viewport size. Labels that overflow
+         * ellipsize (see .bolt-button-text below).
+         *
+         * The min() caps the percentage at $button-max-width so a very wide column
+         * doesn't produce an oversized button.
+         */
+        width: min(75%, #{$button-max-width});
+        justify-content: center;
+        white-space: nowrap;
+
+        /*
+         * In the `approved` state the label is the approver's display name, which can be
+         * arbitrarily long, and the control only gets the width of one form column. Let
+         * the button grow to fit the name but never past the column, then ellipsize.
+         *
+         * No hover tooltip: the iframe is sized to the control's content, so a tooltip
+         * would be clipped at its edge. The full sentence goes to `ariaLabel` instead
+         * (see buttonAriaLabel in ApprovalButton.tsx).
+         */
+        .bolt-button-text {
+            /* min-width lets a flex item shrink below its content so ellipsis engages. */
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    }
+
+    /*
+     * Unsaved: approved on the form but not yet committed. Warning.
+     *
+     * Follows the platform's MessageBar pattern for status surfaces: the status tint is
+     * the background, the label stays $primary-text, and the status color is used as an
+     * accent (here the border). $status-warning-text is intended for warning text against
+     * the page background, and only reaches 4.10:1 on top of $status-warning-background,
+     * which is below AA for a label this size. $primary-text clears it comfortably, and
+     * the border at 4.10:1 is well past the 3:1 that non-text contrast needs.
+     */
+    &__button--unsaved.bolt-button {
+        background-color: $status-warning-background;
+        color: $primary-text;
+        /* The status tints are pale; without a border the button loses its edge. */
+        border: 1px solid $status-warning-text;
+    }
+
+    /*
+     * Approved and not resettable by this user. Success.
+     *
+     * This state is always disabled, so it has to out-specify the platform's `.disabled`
+     * rules: here the color is a status, not an invitation to click.
+     */
+    &__button--approved.bolt-button,
+    &__button--approved.bolt-button.disabled {
+        background-color: $status-success-background;
+        /* Same surface pattern as the warning state above, for consistency. */
+        color: $primary-text;
+        border: 1px solid $status-success-foreground;
+
+        &:hover,
+        &:focus {
+            background-color: $status-success-background;
+            color: $primary-text;
+        }
+    }
+
+    /*
+     * A disabled `unsaved` button (read-only form, or mid-load) drops back to the
+     * platform's grey: a colored button that cannot be clicked reads as a broken action.
+     * `pending` and `reset` get this behaviour from the Button component already.
+     */
+    &__button--unsaved.bolt-button.disabled,
+    &__button--unsaved.bolt-button.disabled:hover {
+        background-color: $neutral-alpha-6;
+        color: $disabled-text;
+        border-color: transparent;
+    }
+    &__caption {
+        color: $secondary-text;
+        font-size: 11px;
+        line-height: 15px;
+    }
+
+    &__caption--unsaved {
+        font-style: italic;
+    }
+
+    &--error {
+        color: $status-error-text;
+        font-size: 12px;
+        line-height: 16px;
+    }
+}
