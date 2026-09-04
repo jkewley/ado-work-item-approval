@@ -2,10 +2,10 @@
     "manifestVersion": 1,
     "id": "work-item-group-approval",
     "publisher": "JoshKewley",
-    "version": "0.8.3",
+    "version": "1.0.1",
     "name": "Work Item Approval Button",
     "description": "Adds an approval button to a work item. Captures the identity of the approver and a timestamp; only the approver or a project administrator can reset approval.",
-    "public": false,
+    "public": true,
     "categories": [
         "Azure Boards"
     ],
@@ -18,7 +18,7 @@
     ],
     "targets": [
         {
-            "id": "Microsoft.VisualStudio.Services"
+            "id": "Microsoft.VisualStudio.Services.Cloud"
         }
     ],
     "icons": {
@@ -32,6 +32,10 @@
         "details": {
             "path": "marketplace-overview.md"
         }
+    },
+    "repository": {
+        "type": "git",
+        "uri": "https://github.com/jkewley/ado-work-item-approval"
     },
     "files": [
         {
@@ -89,7 +93,7 @@
                     {
                         "id": "ApproverField",
                         "name": "Approver field",
-                        "description": "Identity field that stores who approved. Create one per group in your inherited process, e.g. Custom.ITApprover.",
+                        "description": "Identity field that stores who granted approval. Create one per group in your inherited process, e.g. Custom.ITApprover. Create this field before adding the control.",
                         "type": "WorkItemField",
                         "properties": {
                             "workItemFieldTypes": [
@@ -105,7 +109,7 @@
                     {
                         "id": "ApprovedOnField",
                         "name": "Approved on field (optional)",
-                        "description": "DateTime field that stores when the approval was given, e.g. Custom.ITApprovedOn.",
+                        "description": "DateTime field that stores when the approval was given, e.g. Custom.ITApprovedOn. Create this field before adding the control.",
                         "type": "WorkItemField",
                         "properties": {
                             "workItemFieldTypes": [
