@@ -10,7 +10,7 @@ clicked it. Once set, only that person or a project administrator can reset it.
 | --- | --- | --- | --- |
 | Nothing recorded | `Approve for <Group name>` (enabled) | error red | none |
 | Just approved, not yet saved | `<Group name> : Pending` (enabled) | warning amber | *Save the work item to record your approval* |
-| Recorded, viewed by the approver or a project admin | `Reset Approval` (enabled) | info blue | `<user> for <Group name> on <date>` |
+| Recorded, viewed by the approver or a project admin | `Reset Business Approval` (enabled) | info blue | `<user> for <Group name> on <date>` |
 | Recorded, viewed by anyone else | `<approver's name>` (disabled) | success light green | `Approved for <Group name> on <date>` |
 | Read-only form or still loading | current label (disabled) | platform grey, or success if recorded | caption if recorded |
 

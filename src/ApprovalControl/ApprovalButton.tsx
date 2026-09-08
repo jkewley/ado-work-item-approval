@@ -219,7 +219,7 @@ function buttonText(
         case "unsaved":
             return `${groupName} : Pending`;
         case "reset":
-            return "Reset Approval";
+            return `Reset ${groupName} Approval`;
         case "approved":
             // `approver` is always set in this state; the fallback is only for the type.
             return approver ? approver.displayName : "Approved";

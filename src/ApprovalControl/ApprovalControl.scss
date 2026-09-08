@@ -116,7 +116,7 @@ body {
     &__button.bolt-button {
         /*
          * Never wrap. The label changes length as the state changes ("Approve for
-         * Business", "Pending", "Reset Approval", an approver's name), and a wrapped
+         * Business", "Pending", "Reset Business Approval", an approver's name), and a wrapped
          * label would change the control's height and fire a resize on every click.
          */
         /*
