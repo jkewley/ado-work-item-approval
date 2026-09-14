@@ -129,8 +129,8 @@ item types, so three groups means three (or six, with dates) fields total, not p
 | Group name | Yes | Label shown on the button, e.g. `IT` → "Approve for IT". |
 | Approver field | Yes | Identity field that records who approved, e.g. `Custom.ITApprover`. |
 | Approved on field | No | Date/Time field that records when approval was given, e.g. `Custom.ITApprovedOn`. |
-| Approver team | No | Name of an ADO team (Project Settings → Teams) whose members may approve. Absent = anyone. |
-| Admin team | No | Name of an ADO team whose members may reset any approval. Absent = original approver only. |
+| Approver group | No | Name of an ADO team or security group whose members may approve. Absent = anyone. |
+| Admin group | No | Name of an ADO team or security group whose members may reset any approval. Absent = original approver only. |
 | Visibility field | No | Reference name of a field that gates visibility of the button, e.g. `Custom.ReleaseType`. Absent = always visible. |
 | Visibility value | No | Value the visibility field must equal for the button to appear, e.g. `Emergency`. Case-insensitive. |
 
@@ -167,15 +167,24 @@ The "only the approver or an admin-team member may reset" rule is enforced in th
 
 - The approver is matched on identity GUID (falling back to unique name) against
   `SDK.getUser()`.
-- Admin-team membership is checked via `CoreRestClient.getTeams(mine: true)`, which returns the
-  teams the current user belongs to in the project. The check fails closed — if the API call
-  errors, the user is treated as a non-admin. Results are cached for the lifetime of the iframe.
+- Approver and admin membership first checks `CoreRestClient.getTeams(mine: true)` for project
+  teams, then uses the Graph API to resolve an exact-name security group and walk the signed-in
+  user's group memberships. The check fails closed — if the APIs cannot resolve membership, the
+  user is treated as not being in the group. Results are cached for the lifetime of the iframe.
 
-> **Note on security groups.** The team membership check covers ADO Teams (visible in Project
-> Settings → Teams) but not arbitrary security groups such as "Project Administrators". This is
-> because the Graph API that exposes security group membership lives on `vssps.dev.azure.com`,
-> which blocks cross-origin requests from extension iframes. To grant reset rights to admins,
-> create a dedicated ADO team (e.g. `Release Admins`) and set it as the **Admin team** input.
+The configured name must match the group's display name exactly, case-insensitively. Nested group
+membership is supported when Azure DevOps exposes the membership relationships through Graph.
+
+> **Note on identity source.** The current user's identity comes from `SDK.getUser()`, the context
+> object the host hands the extension iframe during initialization — not from decoding a bearer
+> token. This sidesteps a
+> [known SDK issue](https://github.com/microsoft/azure-devops-extension-sdk/issues/16) where the
+> `nameid` claim inside `SDK.getAppToken()`'s JWT can, in roughly 1 in 10 cases, resolve to the
+> wrong identity; that problem only affects extensions that authenticate a custom backend by
+> decoding that token, which this extension does not have or do. `SDK.getUser().descriptor` can
+> still be empty in some host contexts, though — the same defense-in-depth principle applies, so
+> `groupCheck.ts` falls back to resolving the descriptor from `SDK.getUser().id` via
+> `GraphRestClient.getDescriptor` rather than trusting the field unconditionally.
 
 **This is not a server-side guarantee.** Azure DevOps has no work item rule that expresses "only
 the identity currently in this field may clear it," so the underlying field remains writable by
@@ -192,7 +201,8 @@ scope.
 | Scope | Why |
 | --- | --- |
 | `vso.work_write` | Read and write the approval fields on the work item form |
-| `vso.project` | Read the current user's ADO team memberships to enforce approver and admin team restrictions |
+| `vso.project` | Read project teams to enforce approver and admin group restrictions |
+| `vso.graph` | Resolve security groups and read group memberships |
 
 ## Notes
 
@@ -206,9 +216,8 @@ scope.
   input; the comparison at runtime is case-insensitive. Picklist values do not need to be typed
   in any particular case.
 
-- The **Approver team** and **Admin team** inputs match against ADO Team names exactly as they
-  appear in Project Settings → Teams. The comparison is case-insensitive but the name must
-  otherwise be exact (no partial matches).
+- The **Approver group** and **Admin group** inputs match against ADO team or security group names.
+  The comparison is case-insensitive but the name must otherwise be exact (no partial matches).
 
 ### Styling and sizing
 

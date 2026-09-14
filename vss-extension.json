@@ -2,9 +2,9 @@
     "manifestVersion": 1,
     "id": "work-item-group-approval",
     "publisher": "JoshKewley",
-    "version": "1.0.3",
+    "version": "1.0.4.1",
     "name": "Work Item Approval Button",
-    "description": "Add approval buttons to work items. Restrict each to an Azure DevOps team, show/hide by field value, and capture the approver's identity and timestamp. Only the approver or an admin team can reset.",
+    "description": "Add approval buttons to work items. Restrict each to an Azure DevOps team or security group, show/hide by field value, and capture the approver's identity and timestamp.",
     "public": true,
     "categories": [
         "Azure Boards"
@@ -31,7 +31,8 @@
     },
     "scopes": [
         "vso.work_write",
-        "vso.project"
+        "vso.project",
+        "vso.graph"
     ],
     "content": {
         "details": {
@@ -128,8 +129,8 @@
                     },
                     {
                         "id": "ApproverTeam",
-                        "name": "Approver team (optional)",
-                        "description": "Name of the ADO team whose members may approve, e.g. 'IT Approvers'. Leave blank to allow anyone. Must match the team name exactly as shown in Project Settings → Teams.",
+                        "name": "Approver group (optional)",
+                        "description": "Name of the ADO team or security group whose members may approve, e.g. 'IT Approvers' or 'Release Security'. Leave blank to allow anyone. Must match the group name exactly.",
                         "type": "string",
                         "validation": {
                             "dataType": "String",
@@ -138,8 +139,8 @@
                     },
                     {
                         "id": "AdminTeam",
-                        "name": "Admin team (optional)",
-                        "description": "Name of the ADO team whose members may reset anyone's approval. Leave blank to allow only the original approver to reset. Must match the team name exactly as shown in Project Settings → Teams.",
+                        "name": "Admin group (optional)",
+                        "description": "Name of the ADO team or security group whose members may reset anyone's approval. Leave blank to allow only the original approver to reset. Must match the group name exactly.",
                         "type": "string",
                         "validation": {
                             "dataType": "String",

@@ -3,16 +3,16 @@ import * as SDK from "azure-devops-extension-sdk";
 import { Button } from "azure-devops-ui/Button";
 import { IWorkItemFormService } from "azure-devops-extension-api/WorkItemTracking";
 
-import { isCurrentUserInTeam } from "./groupCheck";
+import { isCurrentUserInGroup } from "./groupCheck";
 import { ApproverIdentity, formatIdentity, isSameIdentity, parseIdentity } from "./identity";
 
 export interface IControlConfig {
     groupName: string;
     approverField: string;
     approvedOnField?: string;
-    /** Display name of the ADO team whose members may approve. Absent = anyone. */
+    /** Display name of the ADO team or security group whose members may approve. Absent = anyone. */
     approverTeam?: string;
-    /** Display name of the ADO team whose members may reset anyone's approval. Absent = approver only. */
+    /** Display name of the ADO team or security group whose members may reset anyone's approval. Absent = approver only. */
     adminTeam?: string;
     /** Field reference name to check for visibility, e.g. Custom.ReleaseType. Absent = always visible. */
     visibilityField?: string;
@@ -66,8 +66,8 @@ export class ApprovalButton extends React.Component<IApprovalButtonProps, IAppro
             ];
             const [values, isInTeam, isAdmin] = await Promise.all([
                 service.getFieldValues(fields),
-                approverTeam ? isCurrentUserInTeam(approverTeam) : Promise.resolve(true),
-                adminTeam ? isCurrentUserInTeam(adminTeam) : Promise.resolve(false)
+                approverTeam ? isCurrentUserInGroup(approverTeam) : Promise.resolve(true),
+                adminTeam ? isCurrentUserInGroup(adminTeam) : Promise.resolve(false)
             ]);
 
             const approver = parseIdentity(values[approverField]);

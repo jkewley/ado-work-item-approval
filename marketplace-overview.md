@@ -1,6 +1,6 @@
 # Work Item Group Approval
 
-Add sign-off buttons directly to your Azure Boards work item. Each button lets a designated person record approval on behalf of a named group - IT, QA, Business, Legal, or any group you define. Approvals can be **restricted to members of a named Azure DevOps team**, and each button can be **shown or hidden based on the value of another field** so approval steps only appear when they apply. The extension captures who approved, for which group, and when, and stores everything in real work item fields that you can query, filter, and report on.
+Add sign-off buttons directly to your Azure Boards work item. Each button lets a designated person record approval on behalf of a named group - IT, QA, Business, Legal, or any group you define. Approvals can be **restricted to members of a named Azure DevOps team or security group**, and each button can be **shown or hidden based on the value of another field** so approval steps only appear when they apply. The extension captures who approved, for which group, and when, and stores everything in real work item fields that you can query, filter, and report on.
 
 ## What it does
 
@@ -48,8 +48,8 @@ For each group that needs an approval button:
 | Group name | Yes | Label for the group, e.g. `IT`. Shown on the button as "Approve for IT". |
 | Approver field | Yes | The Identity field that records who approved, e.g. `Custom.ITApprover`. |
 | Approved on field | No | A Date/Time field that records when approval was given, e.g. `Custom.ITApprovedOn`. |
-| Approver team | No | Name of an ADO team (from Project Settings → Teams) whose members may approve. Leave blank to allow anyone to approve. |
-| Admin team | No | Name of an ADO team whose members may reset any approval, not just their own. Leave blank to allow only the original approver to reset. |
+| Approver group | No | Name of an ADO team or security group whose members may approve. Leave blank to allow anyone to approve. |
+| Admin group | No | Name of an ADO team or security group whose members may reset any approval, not just their own. Leave blank to allow only the original approver to reset. |
 | Visibility field | No | A work item field that controls whether the button is shown at all. Leave blank to always show the button. |
 | Visibility value | No | The value the visibility field must equal for the button to appear. Comparison is case-insensitive. |
 
@@ -79,7 +79,7 @@ The button now appears only when `Release Type` is `Emergency`. As soon as someo
 Once a work item is saved with an approval recorded, two groups of people can reset it:
 
 - The person who clicked the button.
-- Any member of the **Admin team** configured on that control (optional - if none is set, only the original approver can reset).
+- Any member of the **Admin group** configured on that control (optional - if none is set, only the original approver can reset).
 
 Everyone else sees the approval as read-only. This is enforced in the control UI. Because Azure DevOps has no server-side work item rule that locks a field to a specific identity, the underlying field can still be edited via the REST API or bulk edit by users with edit permission - every such change is recorded in the work item history as an audit trail.
 
@@ -88,4 +88,5 @@ Everyone else sees the approval as read-only. This is enforced in the control UI
 | Scope | Purpose |
 | --- | --- |
 | `vso.work_write` | Read and write the approval fields on the work item form. |
-| `vso.project` | Read the current user's ADO team memberships to enforce approver and admin team restrictions. |
+| `vso.project` | Read project teams to enforce approver and admin group restrictions. |
+| `vso.graph` | Resolve security groups and read group memberships. |
