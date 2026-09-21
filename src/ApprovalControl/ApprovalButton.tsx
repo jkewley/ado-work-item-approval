@@ -18,6 +18,8 @@ export interface IControlConfig {
     visibilityField?: string;
     /** Value that visibilityField must equal (case-insensitive) for the control to be shown. */
     visibilityValue?: string;
+    /** Prevent the work item creator from recording an approval. */
+    preventCreatorApproval?: boolean;
 }
 
 export interface IApprovalButtonProps {
@@ -30,6 +32,7 @@ interface IApprovalButtonState {
     loading: boolean;
     visible: boolean;
     approver?: ApproverIdentity;
+    creator?: ApproverIdentity;
     approvedOn?: Date;
     isAdmin: boolean;
     isInTeam: boolean;
@@ -56,13 +59,22 @@ export class ApprovalButton extends React.Component<IApprovalButtonProps, IAppro
     /** Re-reads field values from the form. Called by the work item notification listener. */
     public async refresh(options?: { readOnly?: boolean; saved?: boolean }): Promise<void> {
         try {
-            const { approverField, approvedOnField, approverTeam, adminTeam, visibilityField, visibilityValue } = this.props.config;
+            const {
+                approverField,
+                approvedOnField,
+                approverTeam,
+                adminTeam,
+                visibilityField,
+                visibilityValue,
+                preventCreatorApproval
+            } = this.props.config;
             const service = await this.props.getFormService();
 
             const fields = [
                 approverField,
                 ...(approvedOnField ? [approvedOnField] : []),
-                ...(visibilityField ? [visibilityField] : [])
+                ...(visibilityField ? [visibilityField] : []),
+                ...(preventCreatorApproval ? ["System.CreatedBy"] : [])
             ];
             const [values, isInTeam, isAdmin] = await Promise.all([
                 service.getFieldValues(fields),
@@ -71,6 +83,7 @@ export class ApprovalButton extends React.Component<IApprovalButtonProps, IAppro
             ]);
 
             const approver = parseIdentity(values[approverField]);
+            const creator = preventCreatorApproval ? parseIdentity(values["System.CreatedBy"]) : undefined;
             const rawDate = approvedOnField ? values[approvedOnField] : undefined;
             const visible = visibilityField && visibilityValue
                 ? String(values[visibilityField] ?? "").toLowerCase() === visibilityValue.toLowerCase()
@@ -80,6 +93,7 @@ export class ApprovalButton extends React.Component<IApprovalButtonProps, IAppro
                 loading: false,
                 visible,
                 approver,
+                creator,
                 approvedOn: toDate(rawDate),
                 isAdmin,
                 isInTeam,
@@ -98,8 +112,8 @@ export class ApprovalButton extends React.Component<IApprovalButtonProps, IAppro
     }
 
     public render(): JSX.Element | null {
-        const { groupName, approverTeam } = this.props.config;
-        const { loading, visible, approver, approvedOn, isAdmin, isInTeam, isReadOnly, pendingSave, error } = this.state;
+        const { groupName, approverTeam, preventCreatorApproval } = this.props.config;
+        const { loading, visible, approver, creator, approvedOn, isAdmin, isInTeam, isReadOnly, pendingSave, error } = this.state;
 
         if (!visible) {
             return null;
@@ -111,8 +125,9 @@ export class ApprovalButton extends React.Component<IApprovalButtonProps, IAppro
 
         const currentUser = currentUserIdentity();
         const isApprover = isSameIdentity(approver, currentUser);
+        const isCreator = preventCreatorApproval && isSameIdentity(creator, currentUser);
         const canReset = !!approver && !isReadOnly && (isApprover || isAdmin);
-        const canApprove = isInTeam;
+        const canApprove = isInTeam && (!isCreator || isAdmin);
         const disabled = loading || isReadOnly || (!!approver && !canReset) || (!approver && !canApprove);
         const state = approvalState(approver, canReset, pendingSave);
         const label = buttonText(state, groupName, approver);
@@ -142,7 +157,17 @@ export class ApprovalButton extends React.Component<IApprovalButtonProps, IAppro
                         {captionText(state, approver, approvedOn, groupName)}
                     </div>
                 )}
-                {!canApprove && !approver && (
+                {isCreator && isAdmin && !approver && (
+                    <div className="approval-control__caption">
+                        As admin, you can approve your own work item
+                    </div>
+                )}
+                {isCreator && !isAdmin && !approver && (
+                    <div className="approval-control__caption">
+                        The work item creator cannot approve it
+                    </div>
+                )}
+                {!isCreator && !canApprove && !approver && (
                     <div className="approval-control__caption">
                         Restricted to {approverTeam || "a specific team"}
                     </div>

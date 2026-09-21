@@ -2,7 +2,7 @@
     "manifestVersion": 1,
     "id": "work-item-group-approval",
     "publisher": "JoshKewley",
-    "version": "1.0.4.1",
+    "version": "1.0.5.2",
     "name": "Work Item Approval Button",
     "description": "Add approval buttons to work items. Restrict each to an Azure DevOps team or security group, show/hide by field value, and capture the approver's identity and timestamp.",
     "public": true,
@@ -144,6 +144,16 @@
                         "type": "string",
                         "validation": {
                             "dataType": "String",
+                            "isRequired": false
+                        }
+                    },
+                    {
+                        "id": "PreventCreatorApproval",
+                        "name": "Prevent creator approval",
+                        "description": "Enter True to prevent the person who created the work item from approving it. Leave blank or enter False to allow it.",
+                        "type": "string",
+                        "validation": {
+                            "dataType": "Boolean",
                             "isRequired": false
                         }
                     },

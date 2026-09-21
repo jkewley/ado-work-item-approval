@@ -12,7 +12,7 @@ Each control you add to a work item layout renders as a single button. Before an
 
 Stack multiple controls in one column - one per group - and each operates independently. A form column might show IT, QA, and Business approvals side by side, each with its own status at a glance.
 
-Restrict each button to members of a named Azure DevOps team - anyone outside that team sees the approval as read-only and cannot click it. Buttons can also be shown or hidden based on the value of another field on the same work item, so approval steps only appear when they apply and never clutter the form otherwise.
+Restrict each button to members of a named Azure DevOps team - anyone outside that team sees the approval as read-only and cannot click it. You can also prevent the work item creator from approving their own item; their disabled button explains the restriction. Buttons can also be shown or hidden based on the value of another field on the same work item, so approval steps only appear when they apply and never clutter the form otherwise.
 
 ![Approval states](images/ApprovalStates.png)
 
@@ -50,6 +50,7 @@ For each group that needs an approval button:
 | Approved on field | No | A Date/Time field that records when approval was given, e.g. `Custom.ITApprovedOn`. |
 | Approver group | No | Name of an ADO team or security group whose members may approve. Leave blank to allow anyone to approve. |
 | Admin group | No | Name of an ADO team or security group whose members may reset any approval, not just their own. Leave blank to allow only the original approver to reset. |
+| Prevent creator approval | No | Enter `True` to prevent the person who created the work item from approving it, unless they belong to the configured Admin group. Leave blank or enter `False` to allow it. |
 | Visibility field | No | A work item field that controls whether the button is shown at all. Leave blank to always show the button. |
 | Visibility value | No | The value the visibility field must equal for the button to appear. Comparison is case-insensitive. |
 

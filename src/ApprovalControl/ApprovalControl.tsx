@@ -24,14 +24,16 @@ function getFormService(): Promise<IWorkItemFormService> {
  * contribution configuration as `witInputs`.
  */
 function readConfig(): IControlConfig | string {
-    const inputs = (SDK.getConfiguration().witInputs ?? {}) as Record<string, string>;
-    const groupName = (inputs.GroupName ?? "").trim();
-    const approverField = (inputs.ApproverField ?? "").trim();
-    const approvedOnField = (inputs.ApprovedOnField ?? "").trim();
-    const approverTeam = (inputs.ApproverTeam ?? "").trim();
-    const adminTeam = (inputs.AdminTeam ?? "").trim();
-    const visibilityField = (inputs.VisibilityField ?? "").trim();
-    const visibilityValue = (inputs.VisibilityValue ?? "").trim();
+    const inputs = (SDK.getConfiguration().witInputs ?? {}) as Record<string, unknown>;
+    const groupName = textInput(inputs.GroupName);
+    const approverField = textInput(inputs.ApproverField);
+    const approvedOnField = textInput(inputs.ApprovedOnField);
+    const approverTeam = textInput(inputs.ApproverTeam);
+    const adminTeam = textInput(inputs.AdminTeam);
+    const visibilityField = textInput(inputs.VisibilityField);
+    const visibilityValue = textInput(inputs.VisibilityValue);
+    const preventCreatorApproval = inputs.PreventCreatorApproval === true ||
+        textInput(inputs.PreventCreatorApproval).toLowerCase() === "true";
 
     if (!groupName) {
         return "This approval control has no group name. Edit the field in the form layout and set 'Group name'.";
@@ -47,8 +49,13 @@ function readConfig(): IControlConfig | string {
         approverTeam: approverTeam || undefined,
         adminTeam: adminTeam || undefined,
         visibilityField: visibilityField || undefined,
-        visibilityValue: visibilityValue || undefined
+        visibilityValue: visibilityValue || undefined,
+        preventCreatorApproval
     };
+}
+
+function textInput(value: unknown): string {
+    return typeof value === "string" ? value.trim() : "";
 }
 
 function renderError(message: string): void {

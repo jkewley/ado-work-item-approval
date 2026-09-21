@@ -131,6 +131,7 @@ item types, so three groups means three (or six, with dates) fields total, not p
 | Approved on field | No | Date/Time field that records when approval was given, e.g. `Custom.ITApprovedOn`. |
 | Approver group | No | Name of an ADO team or security group whose members may approve. Absent = anyone. |
 | Admin group | No | Name of an ADO team or security group whose members may reset any approval. Absent = original approver only. |
+| Prevent creator approval | No | Enter `True` to prevent the person who created the work item from approving it. Leave blank or enter `False` to allow it. Admin-group members are exempt. Their disabled button explains this restriction. |
 | Visibility field | No | Reference name of a field that gates visibility of the button, e.g. `Custom.ReleaseType`. Absent = always visible. |
 | Visibility value | No | Value the visibility field must equal for the button to appear, e.g. `Emergency`. Case-insensitive. |
 
@@ -174,6 +175,11 @@ The "only the approver or an admin-team member may reset" rule is enforced in th
 
 The configured name must match the group's display name exactly, case-insensitively. Nested group
 membership is supported when Azure DevOps exposes the membership relationships through Graph.
+
+When **Prevent creator approval** is enabled, the control compares `System.CreatedBy` with
+`SDK.getUser()` using the same GUID, unique-name, then display-name matching as approvals. The
+restriction is enforced only when recording a new approval; it does not affect the reset rules.
+Members of the configured admin group are exempt from this restriction.
 
 > **Note on identity source.** The current user's identity comes from `SDK.getUser()`, the context
 > object the host hands the extension iframe during initialization — not from decoding a bearer
