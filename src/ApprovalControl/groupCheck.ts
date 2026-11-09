@@ -3,8 +3,6 @@ import { getClient } from "azure-devops-extension-api";
 import { CoreRestClient } from "azure-devops-extension-api/Core";
 import { GraphRestClient, GraphSubject, GraphTraversalDirection } from "azure-devops-extension-api/Graph";
 
-const MAX_MEMBERSHIP_DEPTH = 10;
-
 /**
  * Each control on the work item form is hosted in its own iframe, so in-memory state is
  * not shared between buttons. All iframes of this extension share one origin, though, so
@@ -209,45 +207,43 @@ async function findGroups(
     return [...groups.values()];
 }
 
-/** Every group the user belongs to, directly or through nesting. */
+/**
+ * Every group the user belongs to, directly or through nesting.
+ *
+ * The Graph API only supports depth=1 (anything else is a 400), so nesting has to be
+ * walked. Each level is fetched in parallel, making the cost one round trip per level of
+ * nesting rather than one per group.
+ */
 async function listAllContainers(client: GraphRestClient, userDescriptor: string): Promise<string[]> {
-    // Fast path: one call returns every transitive parent group (depth > 1). Falls back to
-    // walking level by level if the server rejects the depth request.
-    try {
-        const all = await client.listMemberships(userDescriptor, GraphTraversalDirection.Up, MAX_MEMBERSHIP_DEPTH);
-        return (all ?? []).map(m => m.containerDescriptor);
-    } catch (e) {
-        console.warn("groupCheck: transitive membership query failed, walking level by level", e);
-    }
-
-    const pending = [userDescriptor];
-    const visited = new Set<string>();
+    const visited = new Set<string>([userDescriptor]);
     const containers = new Set<string>();
+    let level = [userDescriptor];
 
-    while (pending.length > 0) {
-        const subjectDescriptor = pending.shift()!;
-        // Defensive: an empty descriptor would build a URL with no {subjectDescriptor}
-        // route segment, which the API 404s rather than rejecting outright.
-        if (!subjectDescriptor || visited.has(subjectDescriptor)) {
-            continue;
-        }
-        visited.add(subjectDescriptor);
+    while (level.length > 0) {
+        const results = await Promise.all(level.map(async descriptor => {
+            // Org-level groups (and Entra-backed groups) can reject membership listing for
+            // the caller. Skip that branch rather than failing the whole check.
+            try {
+                return (await client.listMemberships(descriptor, GraphTraversalDirection.Up)) ?? [];
+            } catch (e) {
+                console.warn(`groupCheck: could not list memberships for ${descriptor}`, e);
+                return [];
+            }
+        }));
 
-        // Org-level groups (and Entra-backed groups) can reject membership listing for
-        // the caller. Skip that branch rather than failing the whole check.
-        let memberships: Awaited<ReturnType<GraphRestClient["listMemberships"]>>;
-        try {
-            memberships = await client.listMemberships(subjectDescriptor, GraphTraversalDirection.Up);
-        } catch (e) {
-            console.warn(`groupCheck: could not list memberships for ${subjectDescriptor}`, e);
-            continue;
-        }
-        for (const membership of memberships ?? []) {
-            containers.add(membership.containerDescriptor);
-            if (!visited.has(membership.containerDescriptor)) {
-                pending.push(membership.containerDescriptor);
+        const next: string[] = [];
+        for (const memberships of results) {
+            for (const { containerDescriptor } of memberships) {
+                containers.add(containerDescriptor);
+                // Defensive: an empty descriptor would build a URL with no
+                // {subjectDescriptor} route segment, which the API 404s.
+                if (containerDescriptor && !visited.has(containerDescriptor)) {
+                    visited.add(containerDescriptor);
+                    next.push(containerDescriptor);
+                }
             }
         }
+        level = next;
     }
 
     return [...containers];
