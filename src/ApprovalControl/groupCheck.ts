@@ -4,65 +4,171 @@ import { CoreRestClient } from "azure-devops-extension-api/Core";
 import { GraphRestClient, GraphSubject, GraphTraversalDirection } from "azure-devops-extension-api/Graph";
 
 const MAX_MEMBERSHIP_DEPTH = 10;
-const cache = new Map<string, Promise<boolean>>();
+
+/**
+ * Each control on the work item form is hosted in its own iframe, so in-memory state is
+ * not shared between buttons. All iframes of this extension share one origin, though, so
+ * sessionStorage (shared per tab) is used to share the user-level lookups. A short TTL keeps
+ * results from going stale for long; Web Locks (when available) make concurrently-loading
+ * iframes wait for the first one to populate the cache instead of all fetching at once.
+ */
+const SHARED_TTL_MS = 2 * 60 * 1000;
+const SHARED_PREFIX = "groupCheck:";
+
+function readShared<T>(key: string): T | undefined {
+    try {
+        const raw = sessionStorage.getItem(SHARED_PREFIX + key);
+        if (!raw) {
+            return undefined;
+        }
+        const entry = JSON.parse(raw) as { t: number; v: T };
+        return Date.now() - entry.t < SHARED_TTL_MS ? entry.v : undefined;
+    } catch {
+        return undefined;
+    }
+}
+
+function writeShared(key: string, value: unknown): void {
+    try {
+        sessionStorage.setItem(SHARED_PREFIX + key, JSON.stringify({ t: Date.now(), v: value }));
+    } catch {
+        // Storage unavailable (sandboxed/blocked) - just skip cross-iframe sharing.
+    }
+}
+
+function withLock<T>(name: string, fn: () => Promise<T>): Promise<T> {
+    const locks = (navigator as any).locks;
+    return locks?.request ? locks.request(SHARED_PREFIX + name, fn) : fn();
+}
+
+/** Memoize per iframe, share across iframes via storage; failures are never cached. */
+function sharedOnce<T>(key: string, fetch: () => Promise<{ value: T; cacheable: boolean }>): () => Promise<T> {
+    let pending: Promise<T> | undefined;
+    return () => {
+        if (!pending) {
+            pending = withLock(key, async () => {
+                const hit = readShared<T>(key);
+                if (hit !== undefined) {
+                    return hit;
+                }
+                const { value, cacheable } = await fetch();
+                if (cacheable) {
+                    writeShared(key, value);
+                }
+                return value;
+            });
+            pending.catch(() => { pending = undefined; });
+        }
+        return pending;
+    };
+}
+
+interface GraphContext {
+    projectDescriptor: string;
+    /** Descriptors of every group the user belongs to, directly or transitively. */
+    containers: string[];
+}
+
+let teamsLoader: (() => Promise<string[]>) | undefined;
+let graphLoader: (() => Promise<GraphContext | undefined>) | undefined;
+const groupDescriptorLoaders = new Map<string, () => Promise<string[]>>();
+const resultCache = new Map<string, Promise<boolean>>();
+
+function projectId(): string {
+    return SDK.getPageContext().webContext.project.id;
+}
 
 /**
  * True when the signed-in user is a member of an ADO team or security group whose
  * name matches groupName (case-insensitive).
  *
- * Fails closed on any API error. Cached for the iframe lifetime.
+ * Fails closed on any API error. User-level lookups (teams, memberships, descriptors)
+ * are shared by every button on the page; only the name->group lookup is per group name.
  */
 export function isCurrentUserInGroup(groupName: string): Promise<boolean> {
     const key = groupName.toLowerCase();
-    if (!cache.has(key)) {
-        const p = resolve(groupName).catch(() => false);
-        cache.set(key, p);
+    if (!resultCache.has(key)) {
+        resultCache.set(key, resolve(groupName).catch(() => false));
     }
-    return cache.get(key)!;
+    return resultCache.get(key)!;
 }
 
 async function resolve(groupName: string): Promise<boolean> {
-    const projectId = SDK.getPageContext().webContext.project.id;
     const needle = groupName.toLowerCase();
-    const coreClient = getClient(CoreRestClient);
-    const pageSize = 100;
-    let skip = 0;
 
-    try {
-        while (true) {
-            const page = await coreClient.getTeams(projectId, /* mine */ true, pageSize, skip);
-            if (page.some(t => t.name.toLowerCase() === needle)) {
-                return true;
+    const teamNames = await loadTeams();
+    if (teamNames.includes(needle)) {
+        return true;
+    }
+
+    const graph = await loadGraphContext();
+    if (!graph) {
+        return false;
+    }
+
+    const targets = await loadGroupDescriptors(groupName, graph.projectDescriptor);
+    if (targets.length === 0) {
+        return false;
+    }
+    const containers = new Set(graph.containers);
+    return targets.some(d => containers.has(d));
+}
+
+function loadTeams(): Promise<string[]> {
+    teamsLoader ??= sharedOnce(`teams:${projectId()}`, async () => {
+        const coreClient = getClient(CoreRestClient);
+        const pageSize = 100;
+        const names: string[] = [];
+        try {
+            for (let skip = 0; ; skip += pageSize) {
+                const page = await coreClient.getTeams(projectId(), /* mine */ true, pageSize, skip);
+                names.push(...page.map(t => t.name.toLowerCase()));
+                if (page.length < pageSize) {
+                    break;
+                }
             }
-            if (page.length < pageSize) {
-                break;
-            }
-            skip += pageSize;
+            return { value: names, cacheable: true };
+        } catch {
+            // Continue with Graph so a transient team API failure does not prevent
+            // security-group membership from being resolved. Don't share a partial list.
+            return { value: names, cacheable: false };
         }
-    } catch {
-        // Continue with Graph so a transient team API failure does not prevent
-        // security-group membership from being resolved.
+    });
+    return teamsLoader();
+}
+
+function loadGraphContext(): Promise<GraphContext | undefined> {
+    graphLoader ??= sharedOnce<GraphContext | undefined>(`graph:${projectId()}:${SDK.getUser().id}`, async () => {
+        const graphClient = getClient(GraphRestClient);
+
+        // SDK.getUser().descriptor is not reliably populated by every host version/context,
+        // and an empty descriptor makes listMemberships build a malformed URL (the
+        // {subjectDescriptor} route segment is simply dropped, producing a 404 rather than
+        // a clear error). Resolve it from the user's storage key instead.
+        const [userDescriptor, projectDescriptor] = await Promise.all([
+            resolveUserDescriptor(graphClient),
+            graphClient.getDescriptor(projectId()).then(d => d.value)
+        ]);
+        if (!userDescriptor) {
+            return { value: undefined, cacheable: false };
+        }
+        const containers = await listAllContainers(graphClient, userDescriptor);
+        return { value: { projectDescriptor, containers }, cacheable: true };
+    });
+    return graphLoader();
+}
+
+function loadGroupDescriptors(groupName: string, projectDescriptor: string): Promise<string[]> {
+    const key = groupName.toLowerCase();
+    let loader = groupDescriptorLoaders.get(key);
+    if (!loader) {
+        loader = sharedOnce(`group:${projectId()}:${key}`, async () => {
+            const groups = await findGroups(getClient(GraphRestClient), groupName, projectDescriptor);
+            return { value: groups.map(g => g.descriptor), cacheable: true };
+        });
+        groupDescriptorLoaders.set(key, loader);
     }
-
-    const graphClient = getClient(GraphRestClient);
-
-    // SDK.getUser().descriptor is not reliably populated by every host version/context,
-    // and an empty descriptor makes listMemberships build a malformed URL (the
-    // {subjectDescriptor} route segment is simply dropped, producing a 404 rather than
-    // a clear error). Resolve it from the user's storage key instead, the same way the
-    // project id is resolved to a descriptor below.
-    const userDescriptor = await resolveUserDescriptor(graphClient);
-    if (!userDescriptor) {
-        return false;
-    }
-
-    const projectDescriptor = await graphClient.getDescriptor(projectId);
-    const groups = await findGroups(graphClient, groupName, projectDescriptor.value);
-    if (groups.length === 0) {
-        return false;
-    }
-
-    return hasGroupMembership(graphClient, userDescriptor, new Set(groups.map(group => group.descriptor)));
+    return loader();
 }
 
 async function resolveUserDescriptor(client: GraphRestClient): Promise<string | undefined> {
@@ -103,23 +209,20 @@ async function findGroups(
     return [...groups.values()];
 }
 
-async function hasGroupMembership(
-    client: GraphRestClient,
-    userDescriptor: string,
-    targetDescriptors: Set<string>
-): Promise<boolean> {
-    // Fast path: one call returns every transitive parent group of the user (depth > 1),
-    // so only the name-matched target descriptors need comparing. Falls back to walking
-    // level by level if the server rejects the depth request.
+/** Every group the user belongs to, directly or through nesting. */
+async function listAllContainers(client: GraphRestClient, userDescriptor: string): Promise<string[]> {
+    // Fast path: one call returns every transitive parent group (depth > 1). Falls back to
+    // walking level by level if the server rejects the depth request.
     try {
         const all = await client.listMemberships(userDescriptor, GraphTraversalDirection.Up, MAX_MEMBERSHIP_DEPTH);
-        return (all ?? []).some(m => targetDescriptors.has(m.containerDescriptor));
+        return (all ?? []).map(m => m.containerDescriptor);
     } catch (e) {
         console.warn("groupCheck: transitive membership query failed, walking level by level", e);
     }
 
     const pending = [userDescriptor];
     const visited = new Set<string>();
+    const containers = new Set<string>();
 
     while (pending.length > 0) {
         const subjectDescriptor = pending.shift()!;
@@ -131,8 +234,7 @@ async function hasGroupMembership(
         visited.add(subjectDescriptor);
 
         // Org-level groups (and Entra-backed groups) can reject membership listing for
-        // the caller. Skip that branch rather than failing the whole check, so other
-        // paths to the target group are still evaluated.
+        // the caller. Skip that branch rather than failing the whole check.
         let memberships: Awaited<ReturnType<GraphRestClient["listMemberships"]>>;
         try {
             memberships = await client.listMemberships(subjectDescriptor, GraphTraversalDirection.Up);
@@ -140,15 +242,13 @@ async function hasGroupMembership(
             console.warn(`groupCheck: could not list memberships for ${subjectDescriptor}`, e);
             continue;
         }
-        for (const membership of memberships) {
-            if (targetDescriptors.has(membership.containerDescriptor)) {
-                return true;
-            }
+        for (const membership of memberships ?? []) {
+            containers.add(membership.containerDescriptor);
             if (!visited.has(membership.containerDescriptor)) {
                 pending.push(membership.containerDescriptor);
             }
         }
     }
 
-    return false;
+    return [...containers];
 }
