@@ -42,6 +42,9 @@ interface IApprovalButtonState {
     error?: string;
 }
 
+/** Shown on the (disabled) button until the field values and group-membership checks finish. */
+const CHECKING_PERMISSIONS_TEXT = "Checking Permissions";
+
 export class ApprovalButton extends React.Component<IApprovalButtonProps, IApprovalButtonState> {
     public state: IApprovalButtonState = {
         loading: true,
@@ -130,18 +133,18 @@ export class ApprovalButton extends React.Component<IApprovalButtonProps, IAppro
         const canApprove = isInTeam && (!isCreator || isAdmin);
         const disabled = loading || isReadOnly || (!!approver && !canReset) || (!approver && !canApprove);
         const state = approvalState(approver, canReset, pendingSave);
-        const label = buttonText(state, groupName, approver);
+        const label = loading ? CHECKING_PERMISSIONS_TEXT : buttonText(state, groupName, approver);
 
         return (
             <div className="approval-control">
                 <Button
-                    className={`approval-control__button approval-control__button--${state}`}
+                    className={`approval-control__button approval-control__button--${loading ? "checking" : state}`}
                     // The platform's own error-red and info-blue button treatments. ADO's
                     // --status-info-foreground and --communication-background are the same
                     // color, so `primary` is the info blue. Using the props rather than
                     // CSS keeps the hover, active, focus and high-contrast handling.
-                    danger={state === "pending"}
-                    primary={state === "reset"}
+                    danger={!loading && state === "pending"}
+                    primary={!loading && state === "reset"}
                     disabled={disabled}
                     text={label}
                     ariaLabel={buttonAriaLabel(state, label, approver, approvedOn, groupName)}
